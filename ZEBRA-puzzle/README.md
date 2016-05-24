@@ -1,213 +1,288 @@
-# Poker_Game
+# zebra_puzzle的解决方法及引申
 
+### A. 解题方法
+今天用python来解决传说中的斑马难题
 
-这几天学习了Udacity上的课程：[DOCP](https://classroom.udacity.com/courses/cs212)，
-跟着老师做了个小游戏  **Poker_Game**
+> 1. 英国人住在红色的房子里；
+> 2. 西班牙人养了一条狗；
+> 3. 日本人是一个油漆工；
+> 4. 意大利人喜欢喝茶；
+> 5. 挪威人住在左边的第一个房子里；
+> 6. 绿房子在白房子的右边；
+> 7. 摄影师养了一只蜗牛；
+> 8. 外交官住在黄房子里；
+> 9. 中间房子里的那个人喜欢喝牛奶；
+> 10. 喜欢喝咖啡的人住在绿房子里；
+> 11. 挪威人住在蓝色的房子旁边；
+> 12. 小提琴家喜欢喝橘子汁；
+> 13. 养狐狸的人所住的房子与医师的房子相邻；
+> 14. 养马的人所住的房子与外交官的房子相邻。
 
-上代码，实现是Python
+问：
 
-#### 1) 最初构建处理所有手牌hands的函数 Poker()
+- 哪所房子里的人养斑马
+- 哪所房子里的人喝水
+
+按照思路完全可以用穷举法来做:
+
+并且还要选择用最恰当的 数据类型 去描述这个问题，我们是选择用 set, tuple, 还是简单赋值呢?
+
+- 这里需要首先遵循 **保持简练** 的原则，选择最简单的赋值
+- 假如在解题过程中碰到不可绕过的错误，再返回这一条然后推倒重来
+
 ```
-def poker(hands):
-	# Return the best hand: poker([hand, ...]) => hand
-	return max(hands, key=hand_rank)
+def zebra_puzzle_slow_solution():
+	# Return a tuple (WATER, ZEBRA) indicating their house numbers
+	houses = first, _, middle, _, _ = [1, 2, 3, 4, 5]
+	orderings = list(itertools.permutations(houses))	#1
+	return next((WATER, ZRBRA)
+		for (red, green, ivory, yellow, blue) in orderings
+		for (Englishman, Spaniard, Ukranian, Japanese, Norwegian) in orderings
+		for (dog, snails, fox, horse, ZEBRA) in orderings
+		for (coffee, tea, milk, oj, WATER) in orderings
+		for (OldGold, Kools, Chesterfields, LuckyStrike, Parliaments) in orderings
+		if Englishman == red			#2
+		if Spaniard == dog				#3
+		if coffee == green				#4
+		if Ukranian == tea				#5
+		if imright(green, ivory)		#6
+		if OldGold == snails			#7
+		if Kools == yellow				#8
+		if milk == middle				#9
+		if Norwegian == first			#10
+		if nextto(Chesterfields, fox)	#11
+		if nextto(Kools, horse)			#12
+		if LuckyStrike == oj			#13
+		if Japanese == Parliaments		#14
+		if nextto(Norwegian, blue)		#15
+		)
+	''' 这里使用这种形式的生成器，是为了:
+	1. 可以不使用 缩进，方便人类查阅 【难道还有外星人看吗...】
+	2. 方便修改，方便调试
+结论是：主要为了人类查阅和debug的便利性考虑，当然小伙伴们也是可以写成 缩进+if/else 形式
+        的不过那样你的程序就会跑出你的版面，同时要修改及调试也是相对麻烦很多。
+	'''
 ```
+
+我完全没有跑过这段程序，按估算，它至少要跑一小时。
+
+我们来简单做个乘法运算先吧：
+> 1. 国籍：     英国、西班牙、日本、意大利、挪威
+> 2. 颜色：     红色、绿色、白色、蓝色、黄色
+> 3. 工作：     油漆工、摄影师、外交官、小提琴家、医师
+> 4. 宠物：     狗、蜗牛、狐狸、马、斑马
+> 5. 饮料：     茶、牛奶、咖啡、橘子汁、矿泉水
+
+以上就是条件的汇总，
+
+当仅拿出 **颜色** 来举例，5 所房子，5 种颜色， 就有 5 * 4 * 3 * 2 * 1 = 120 种情况
+```
+房子A       5 种颜色任选-->(还剩4种颜色)
+房子B       4 种颜色任选-->(还剩3种颜色)
+房子C       3 种        -->   剩2种
+房子D       2 种        -->   剩1种
+房子E       1 种
+```
+
+并且，同时存在 5 种属性，那么总共有 120 * 120 * 120 * 120 * 120 = 120 ^ 5 = 2.45 * 10^10 种排列式
+
+看到这个数字，再查询下计算机每秒的计算量上限，就可知如果完全遍历这个组合，大概需要跑 **1 Hour** 以上
 
 ---
 
-#### 2) 把业务逻辑交给hand_rank()函数，而Poker()只负责返回最大的手牌 hand
+### B. 逻辑优化
+接下来就是 穷举法 的**优化精髓**：
 
-核心： 重点是理清hand_rank()的逻辑，它负责判断
+我们来重温 #2 (if Englishman == red			#2)， 在这个情况下，
 
-```
-graph LR
-同花顺 --> 四皇
-四皇 --> FullHouse
-FullHouse --> 同花
-同花 --> 顺子
-顺子 --> 三张
-三张 --> 两对
-两对 --> 两张
-两张 --> 无任何特点
-
-8-->7
-7-->6
-6-->5
-5-->4
-4-->3
-3-->2
-2-->1
-1-->0
+先上代码:
 
 ```
+import itertools, time
 
+def imright(h1, h2):
+    # House h1 is immediately right of h2 if h1-h2 == 1."
+    return h1-h2 == 1
 
-而hand_rank()返回的 **元组(tuple)** 代表每种手牌的特色，如上图所示
+def nextto(h1, h2):
+    # Two houses are next to each other if they differ by 1."
+    return abs(h1-h2) == 1
 
-元组内的第一个元素，就是该种类手牌对应的数字，我们来举两个例子：
-
-A
->同花色的 ["6C", "7C", "8C", "9C", TC"]
->
->返回 (手牌对应种类 , 该手牌最大手牌)  --> **(8, 10)**
->
->当我们知道最大手牌是 10 的时候，推导就知道手牌是 (10, 9, 8, 7, 6)，所以没有必要传入整手手牌
-
-B
->同理可得，Full House ["TD", "TC", "TH", "7C", "7D"]
->
->返回 (手牌对应种类 , 手牌内3张相同牌的数值, 手牌内2张相同牌的数值) --> **(6, 10, 7)**
-
-还有一些传入整组手牌的，是根据Python内 **>/<(比较大小操作符)** 对元组的操作顺序而决定的。
-
-主要是针对 **平局** 时候的判定结果
+def zebra_puzzle_fast():
+	# Return a tuple (WATER, ZEBRA) indicating their house numbers
+	houses = first, _, middle, _, _ = [1, 2, 3, 4, 5]
+	orderings = list(itertools.permutations(houses))	#1
+	return next((WATER, ZEBRA)
+		for (red, green, ivory, yellow, blue) in orderings
+		if imright(green, ivory)		#6
+		for (Englishman, Spaniard, Ukranian, Japanese, Norwegian) in orderings
+		if Englishman == red			#2
+		if Norwegian == first			#10
+		if nextto(Norwegian, blue)		#15
+		for (coffee, tea, milk, oj, WATER) in orderings
+		if coffee == green				#4
+		if Ukranian == tea				#5
+		if milk == middle				#9
+		for (OldGold, Kools, Chesterfields, LuckyStrike, Parliaments) in orderings
+		if Kools == yellow				#8
+		if LuckyStrike == oj			#13
+		if Japanese == Parliaments		#14
+		for (dog, snails, fox, horse, ZEBRA) in orderings
+		if Spaniard == dog				#3
+		if OldGold == snails			#7
+		if nextto(Chesterfields, fox)	#11
+		if nextto(Kools, horse)			#12
+		)
 ```
-def hand_rank(hands):
-	# Return a value indicating the ranking of a hand
-	ranks = card_rank(hands)
-	if staright(ranks) and flush(ranks):
-		return (8, max(ranks))
-	elif kind(4, ranks):
-		return (7, kind(4, ranks), kind(1, ranks))
-	elif kind(3, ranks) and kind(2, ranks):
-		return (6, kind(3, ranks), kind(2, ranks))
-	elif flush(ranks):
-		return (5, ranks)
-	elif straight(ranks):
-		return (4, max(ranks))
-	elif kind(3, ranks):
-		return (3, kind(3, ranks), ranks)
-	elif two_pair(ranks):
-		return (2, two_pair(ranks), ranks)
-	elif kind(2, ranks):
-		return (1, kind(2, ranks), ranks)
+
+可以看到，核心就是 **只遍历必须遍历的情况**， 一旦不满足，马上跳至下一条
+
+你优化后的程序只跑了不到1秒...再一次感叹计算机科学的神奇
+
+---
+
+### C. 效率测试
+#### C1. 运行时间测试
+但是？？究竟跑了多少秒呢？小伙伴们是不是也看到了上面的 import **time** 了？
+那么，就让我们展开一系列检测吧...
+
+以下各种迭代版本，让伙伴们先看清一系列优化的改进逻辑
+
+```
+def t():
+	t0 = time.clock()
+	zebra_puzzle_fast()
+	t1 = time.clock()
+	return t1-t0
+''' Beta_1:
+	t()只能用来测试 zebra_puzzle_fast() 这单一函数的效率
+	我们希望把它扩展成能测试 任何函数 的效率'''
+
+def timedcall(fn, *args):
+	# Call function with args; return the time in seconds and result
+	t0 = time.clock()
+	result = fn(*args)
+	t1 = time.clock()
+	return t1-t0, result
+''' Beta_2:
+    此版本能测试 包括带参数的任何函数，但是基于严谨性，
+    我们需要一个 测试足够n+次 的 测试函数'''
+
+def timedcalls(n, fn, *args):
+	# Call fn(*args) repeatedly: n times if n is an int, or up to
+	# n seconds if n is a float; return the min, avg, and max time
+	if isinstance(n, int):
+		times = [timedcall(fn, *args)[0] for _ in range(n)]
 	else:
-		return (0, ranks)
+		times = []
+		while sum(times) < n:
+			times.append(timedcall(fn, *args)[0])
+	return min(times), average(times), max(times)
+''' Beta_3:
+    既然要采取更多的样本量，首要问题就是决定需要采取 多少 样本量，
+    在这个版本里，我们提供两种选择:
+        1. 当 n 是 整形 时， 我们采取 n 次样本
+        2. 当 n 是 浮点型 时， 我们采取的 样本运行时间总和
+        不能超过 n 秒'''
+
+def average(numbers):
+	# Retuen the average (arithmetic mean) of a sequence of numbers
+	return sum(numbers) / float(len(numbers))
 ```
 
 ---
+#### C2. 运行空间测试
+测试完 所花费的运行时间 之后，当然要对 运行空间 也要有一个确切的测试
 
-#### 3) card_ranks() 输入一组手牌，返回该手牌从大到小的 排序列表
+对，我们测试总共 枚举 了多少种 排列数。
 
-这里我们是摒弃了花色之后再进行的排序
->同花色的 ["6C", "7C", "8C", "9C", TC"]
->
->返回 [10, 9, 8, 7, 6]
-并且考虑到极端值 Ace > King, 所以'--23456789TJQKA'内没有 1， 取而代之的是把 A 放在了最高位
+对于排列数还不熟悉的可以返回去看 A. 解题方法
+
+当然，测试总不能.........
 ```
-def card_ranks(hand):
-	# Return a list of the ranks, sorted with higher first
-	ranks = ['--23456789TJQKA'.index(r) for r, s in hand]
-	ranks.sort(reverse=True)
-	return ranks
-```
-
----
-
-#### 4) staright() 和 flush() 判断是否顺子，判断是否同花
-这里最初我是遍历了所有ranks内所有元素的大小，并且进行了比较
-
-然后当我看到老师的解法的时候....再一次感叹Program的神奇
-```
-def straight(ranks):
-	# Return True if the ordered ranks form a 5-card straight
-	return len(set(ranks)) == 5 and (max(ranks)-min(ranks) == 4)
-
-def flush(hand):
-	# Return True if all the cards have the same suit
-	suits = [s for r, s in hand]
-	return len(set(suits)) == 1
-```
----
-
-#### 5) kind() 判断一组手牌内有无 n 张同样的手牌
-利用Python build-in 函数 count() 完成了这个功能
-```
-def kind(n, ranks):
-	# Return the first rank that this hand has exactly n of
-	# Return None if there is no n-of-a-kind in the hand.
-	for r in ranks:
-		if ranks.count(r) == n:
-			return r
-	return None
-```
----
-#### 6) two_pair() 判断一组手牌内有无 两对对子
-这里我应用了 staright() 函数的判断方式， 但老师的解法是另外一种
-```
-def two_pair(ranks):
-	# If there are two pair, return the the two ranks as a
-	# tuple: (highest, lowest); otherwise return None
-	if len(set(ranks)) == 3 and len(ranks) == 5:
-		pair = kind(2, ranks)
-		lowpair = kind(2, ranks[2:])
-		return (pair, lowpair)
-	return None
-```
-老师的解法:
-```
-def two_pair(ranks):
-        pair = kind(2, ranks)
-        low_pair = kind(2, list(reversed(ranks)))
-        if pair and lowpair != pair:
-            return (pair, lowpair)
-        else:
-            return None
-```
-我也不知道哪个更好点，不过我觉得我的也蛮靠谱的...
-
----
-
-#### 7) 测试函数test(), 测试上述所有函数是否构建完全：
-可以在这里看到上述所有例子的测试
-```
-def test()
-	# Test cases for the functions in poker program
-	sf = "6C 7C 8C 9C TC".split()	# straight flush
-	fk = "9D 9H 9S 9C 7D".split()	# four of a king
-	fh = "TD TC TH 7C 7D".split()	# full house
-	tp = "5S 5D 9H 9C 6S".split()	# two pair
-	s1 = "AS 2S 3S 4S 5C".split()	# A-5 straight
-	s2 = "2C 3C 4C 5S 6S".split()	# 2-6 straight
-	ah = "AS 2S 3S 4S 6C".split()	# A high
-	sh = "2S 3S 4S 6C 7D".split()	# 7 hight
-
-	assert poker([s1, s2, ah, sh]) == s2
-
-	fkranks = card_ranks(fk)
-	tpranks = card_ranks(tp)
-
-	assert kind(4, fkranks) == 9
-	assert kind(3, fkranks) == None
-	assert kind(2, fkranks) == None
-	assert kind(1, fkranks) == 7
-	assert two_pair(fkranks) == None
-	assert two_pair(tpranks) == (9, 5)
-
-	assert straight([9, 8, 7, 6, 5]) == True
-	assert straight([9, 8, 8, 6, 5]) == False
-	assert flush(sf) == True
-	assert flush(fk) == False
-
-	assert poker([sf, fk, fh]) == sf
-	assert poker([fk, fh]) == fk
-	assert poker([fh, fh]) == fh
-	assert poker([sf]) == sf
-	assert poker([sf] + 99*[fh]) == sf
-
-	assert hand_rank(sf) == (8, 10)
-	assert hand_rank(fk) == (7, 9, 7)
-	assert hand_rank(fh) == (6, 10, 7)
-
-	assert card_ranks(sf) == [10, 9, 8, 7, 6]
-	assert card_ranks(fk) == [9, 9, 9, 9, 7]
-	assert card_ranks(fh) == [10, 10, 10, 7, 7]
-
-	return "tests pass"
+cnt = 0
+for (red, green, ivory, yellow, blue) in orderings:
+	cnt += 1
+	for (Englishman, Spaniard, Ukranian, Japanese, Norwegian) in orderings:
+		cnt += 1
+		for (dog, snails, fox, horse, ZEBRA) in orderings:
+			cnt += 1
+			for (coffee, tea, milk, oj, WATER) in orderings:
+				cnt += 1
+				for (OldGold, Kools, Chesterfields, LuckyStrike, Parliaments) in orderings:
+					cnt += 1
 ```
 
----
+这样吧....
+宝宝的心里受到了惊吓....
 
-嗯，暂且是这么多，以后还有更多的要改进呢 = =
+当解说来到这里之后，我们又进入到了一个大坑，所谓程序设计自然是分好的设计和坏的设计
+> 程序设计三大块：
+> 1. 业务代码(service_code)
+> 2. 效率代码(effi_code)
+> 3. 调试代码(debug_code)
 
-See you~
+```
+# 坏的设计
+def thisfunction():
+    service_code
+    effi_code
+        service_code
+        debug_code
+    debug_code
+    service_code
+        effi_code
+        service_code
+
+# 好的设计
+def ser_function():
+    service_code_1
+    service_code_2
+        service_coed_3
+        service_code_4
+
+def effi_code():
+    effi_code_1
+    effi_code_2
+        efficoed_3
+
+def debug_code():
+    debug_code_1
+        debug_code_3
+    debug_code_2
+        debug_code_4
+```
+其实我也想画图...然而找不到画图的好软件...
+
+好了，基于上面的基础原则，既然我们要 **计算总共枚举了多少排列数**
+
+那我们就把这一段测试代码封装成另几段 测试函数， 给小伙伴们顺便玩个连连看(代码就变成了这样):
+
+```
+for (red, ...) in cnt(orderings)
+...
+for (Englishman, ...) in cnt(orderings)
+...
+for (coffee, ...) in cnt(orderings)
+...
+for (OldGold, ...) in cnt(orderings)
+...
+for (dog, ...) in cnt(orderings)
+...
+```
+
+```
+def instrument_fn(fn, *args):
+	cnt.starts, cnt.items = 0, 0
+	result = fn(*args)
+	print "%s got %s with %5d iters over %7d items" % (
+		fn.__name__, result, cnt.starts, cnt.items)
+
+def cnt(sequence):
+	""" Generate items in sequence; keeping counts as we go. c.starts is the
+	number of sequences; c.items is number of items generated"""
+	cnt.starts += 1
+	for item in sequence:
+		cnt.items += 1
+		yield item
+```
