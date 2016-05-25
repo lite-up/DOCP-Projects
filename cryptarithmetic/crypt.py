@@ -6,7 +6,7 @@ def solve(formula):
 	Input formula is a string; output is a digit-filled-in string or None"""
 	for eachfor in fill_in(formula):
 		if valid(eachfor):
-			return eachfor
+			print eachfor
 
 def fill_in(formula):
 	# Generate all possible fillings-in of letters in formula with digits
